@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: findgeorgia
+      POSTGRES_USER: findgeorgia
+      POSTGRES_PASSWORD: local-development-only
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U findgeorgia -d findgeorgia"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  clamav:
+    image: clamav/clamav:stable
+    ports:
+      - "3310:3310"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  api:
+    build: .
+    environment:
+      NODE_ENV: development
+      PORT: 8787
+      DATABASE_PROVIDER: postgres
+      POSTGRES_URL: postgresql://findgeorgia:local-development-only@postgres:5432/findgeorgia
+      POSTGRES_SSL: "false"
+      STORAGE_PROVIDER: filesystem
+      PRIVATE_STORAGE_DIR: /app/var/storage/private
+      PUBLIC_MEDIA_DIR: /app/var/storage/public
+      MALWARE_SCANNER: clamav
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      APP_ORIGIN: http://localhost:4173
+      API_BASE_URL: http://localhost:8787
+      SIGNED_URL_SECRET: local-signed-url-secret-at-least-thirty-two-characters
+      DATA_ENCRYPTION_KEY: local-data-encryption-key-at-least-thirty-two-characters
+      BOT_PROVIDER: development
+    ports:
+      - "8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    volumes:
+      - api-storage:/app/var/storage
+
+volumes:
+  postgres-data:
+  api-storage:

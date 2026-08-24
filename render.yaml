@@ -1,0 +1,179 @@
+databases:
+  - name: find-georgia-postgres
+    region: frankfurt
+    plan: basic-1gb
+    postgresMajorVersion: "17"
+    connectionPool: pgbouncer
+    storageAutoscalingEnabled: true
+    ipAllowList: []
+
+services:
+  - type: pserv
+    name: find-georgia-clamav
+    runtime: image
+    region: frankfurt
+    plan: starter
+    image:
+      url: docker.io/clamav/clamav:stable
+
+  - type: web
+    name: find-georgia-api
+    runtime: docker
+    region: frankfurt
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    preDeployCommand: npm run db:migrate
+    healthCheckPath: /api/health/ready
+    maxShutdownDelaySeconds: 30
+    numInstances: 2
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_ROLE
+        value: api
+      - key: DATABASE_PROVIDER
+        value: postgres
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: find-georgia-postgres
+          property: connectionPoolString
+      - key: POSTGRES_SSL
+        value: "false"
+      - key: DATABASE_POOL_MAX
+        value: "10"
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: MALWARE_SCANNER
+        value: clamav
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: find-georgia-clamav
+          property: host
+      - key: CLAMAV_PORT
+        value: "3310"
+      - key: BOT_PROVIDER
+        value: turnstile
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: TRUST_PROXY
+        value: "true"
+      - key: ENABLE_BACKGROUND_JOBS
+        value: "false"
+      - key: SIGNED_URL_SECRET
+        generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
+      - key: APP_ORIGIN
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: OBJECT_STORAGE_ENDPOINT
+        sync: false
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: OBJECT_STORAGE_PUBLIC_BUCKET
+        sync: false
+      - key: OBJECT_STORAGE_PRIVATE_BUCKET
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: TURNSTILE_HOSTNAME
+        sync: false
+      - key: TURNSTILE_ACTION
+        value: public-intake
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
+      - key: ERROR_MONITOR_DSN
+        sync: false
+      - key: ADMIN_BOOTSTRAP_TOKEN_HASH
+        sync: false
+
+  - type: worker
+    name: find-georgia-worker
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: npm run worker
+    maxShutdownDelaySeconds: 60
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_ROLE
+        value: worker
+      - key: DATABASE_PROVIDER
+        value: postgres
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: find-georgia-postgres
+          property: connectionPoolString
+      - key: POSTGRES_SSL
+        value: "false"
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: MALWARE_SCANNER
+        value: clamav
+      - key: CLAMAV_HOST
+        fromService:
+          type: pserv
+          name: find-georgia-clamav
+          property: host
+      - key: CLAMAV_PORT
+        value: "3310"
+      - key: BOT_PROVIDER
+        value: turnstile
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: ENABLE_BACKGROUND_JOBS
+        value: "true"
+      - key: SIGNED_URL_SECRET
+        sync: false
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: OBJECT_STORAGE_ENDPOINT
+        sync: false
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: OBJECT_STORAGE_PUBLIC_BUCKET
+        sync: false
+      - key: OBJECT_STORAGE_PRIVATE_BUCKET
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: TURNSTILE_HOSTNAME
+        sync: false
+      - key: TURNSTILE_ACTION
+        value: public-intake
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
+      - key: ERROR_MONITOR_DSN
+        sync: false
+      - key: ADMIN_BOOTSTRAP_TOKEN_HASH
+        sync: false
