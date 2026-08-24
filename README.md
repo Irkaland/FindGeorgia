@@ -27,8 +27,8 @@ Copy `.env.example` to a local ignored `.env` and replace only the values needed
 ## Testing
 
 ```bash
-npm test
 npm run build
+npm test
 npm audit --omit=dev --audit-level=high
 ```
 
