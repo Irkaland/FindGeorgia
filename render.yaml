@@ -1,5 +1,5 @@
 databases:
-  - name: find-georgia-postgres
+  - name: find-georgia-db-staging
     region: frankfurt
     plan: basic-1gb
     postgresMajorVersion: "17"
@@ -9,7 +9,7 @@ databases:
 
 services:
   - type: pserv
-    name: find-georgia-clamav
+    name: find-georgia-clamav-staging
     runtime: image
     region: frankfurt
     plan: starter
@@ -17,7 +17,7 @@ services:
       url: docker.io/clamav/clamav:stable
 
   - type: web
-    name: find-georgia-api
+    name: find-georgia-api-staging
     runtime: docker
     region: frankfurt
     plan: standard
@@ -37,7 +37,7 @@ services:
         value: postgres
       - key: POSTGRES_URL
         fromDatabase:
-          name: find-georgia-postgres
+          name: find-georgia-db-staging
           property: connectionPoolString
       - key: POSTGRES_SSL
         value: "false"
@@ -50,7 +50,7 @@ services:
       - key: CLAMAV_HOST
         fromService:
           type: pserv
-          name: find-georgia-clamav
+          name: find-georgia-clamav-staging
           property: host
       - key: CLAMAV_PORT
         value: "3310"
@@ -63,9 +63,9 @@ services:
       - key: ENABLE_BACKGROUND_JOBS
         value: "false"
       - key: SIGNED_URL_SECRET
-        generateValue: true
+        sync: false
       - key: DATA_ENCRYPTION_KEY
-        generateValue: true
+        sync: false
       - key: APP_ORIGIN
         sync: false
       - key: API_BASE_URL
@@ -76,6 +76,8 @@ services:
         sync: false
       - key: OBJECT_STORAGE_ENDPOINT
         sync: false
+      - key: OBJECT_STORAGE_REGION
+        value: auto
       - key: OBJECT_STORAGE_ACCESS_KEY_ID
         sync: false
       - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
@@ -102,7 +104,7 @@ services:
         sync: false
 
   - type: worker
-    name: find-georgia-worker
+    name: find-georgia-worker-staging
     runtime: docker
     region: frankfurt
     plan: starter
@@ -120,7 +122,7 @@ services:
         value: postgres
       - key: POSTGRES_URL
         fromDatabase:
-          name: find-georgia-postgres
+          name: find-georgia-db-staging
           property: connectionPoolString
       - key: POSTGRES_SSL
         value: "false"
@@ -131,7 +133,7 @@ services:
       - key: CLAMAV_HOST
         fromService:
           type: pserv
-          name: find-georgia-clamav
+          name: find-georgia-clamav-staging
           property: host
       - key: CLAMAV_PORT
         value: "3310"
@@ -147,12 +149,16 @@ services:
         sync: false
       - key: APP_ORIGIN
         sync: false
+      - key: API_ORIGIN
+        sync: false
       - key: API_BASE_URL
         sync: false
       - key: PUBLIC_BASE_URL
         sync: false
       - key: OBJECT_STORAGE_ENDPOINT
         sync: false
+      - key: OBJECT_STORAGE_REGION
+        value: auto
       - key: OBJECT_STORAGE_ACCESS_KEY_ID
         sync: false
       - key: OBJECT_STORAGE_SECRET_ACCESS_KEY

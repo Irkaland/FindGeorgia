@@ -18,10 +18,10 @@ The frontend and API should use sibling HTTPS hostnames so `SameSite=Strict` coo
 
 ## Provision staging
 
-1. Put this directory in a private GitHub or GitLab repository and enable the included CI workflow.
+1. Use the connected `Irkaland/FindGeorgia` GitHub repository and require the included `CI / verify` workflow on `main`.
 2. Create two R2 buckets. Keep the private bucket fully private; expose the public bucket only through a production custom domain if direct public delivery is enabled. Create bucket-scoped credentials.
 3. Create a Turnstile widget restricted to the frontend hostname, a verified Resend sender, and a Sentry project. Set `TURNSTILE_HOSTNAME` to the exact widget hostname; the client labels tokens with `public-intake` and the server enforces that action.
-4. Sync `render.yaml`. Enter every `sync: false` value. Copy the generated API signing/encryption secrets to the worker exactly; do not generate different worker values.
+4. Create a Render Blueprint from `render.yaml` on `main`. Confirm that it proposes only `find-georgia-api-staging`, `find-georgia-worker-staging`, `find-georgia-clamav-staging`, and `find-georgia-db-staging`. Enter every `sync: false` value. Generate the signing and encryption keys in a secure secret manager, enter the same respective values on API and worker, and keep the two keys distinct.
 5. Set `APP_ORIGIN`, `CORS_ALLOWED_ORIGINS`, and `PUBLIC_BASE_URL` to the Sites URL. Set `API_BASE_URL` to the Render API URL. Add `api.findgeorgia.ge` before production cutover.
 6. Run the controlled data and media migration in [POSTGRES_MIGRATION.md](POSTGRES_MIGRATION.md).
 7. Run `npm run check:production`, bootstrap the first administrator once, remove the plaintext bootstrap inputs, and retain only the token hash until the bootstrap policy is formally closed.
@@ -39,4 +39,4 @@ The frontend and API should use sibling HTTPS hostnames so `SameSite=Strict` coo
 
 Before the first new production write, rollback is DNS/config reversal to the frozen local system. After production writes begin, do not blindly revert to the old SQLite file. Freeze writes, export the new PostgreSQL delta, reconcile it, and either repair forward or restore PostgreSQL to a new instance and switch service variables. Media written after cutover must be inventoried by object key before any rollback.
 
-No live deploy was performed in this workspace because there is no Git repository, provider authentication, production database, R2 account, DNS, or deploy CLI.
+The GitHub repository and CI are connected and verified. No live provider deploy was performed on 2026-08-24 because the available Render, Cloudflare, Resend, and Sentry browser sessions were unauthenticated and no provider CLI credentials were present. Follow [STAGING_CHECKLIST.md](STAGING_CHECKLIST.md) after signing in; do not substitute production resources or real personal data.

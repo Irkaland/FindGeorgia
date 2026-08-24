@@ -41,7 +41,18 @@ ERROR_MONITOR_DSN
 ADMIN_BOOTSTRAP_TOKEN_HASH
 ```
 
-Non-secret production-mode values are defined in `render.yaml`. Copy generated signing/encryption secrets from the API service to the worker; do not independently regenerate them.
+Non-secret production-mode values are defined in `render.yaml`. Generate signing/encryption values in a secure secret manager and enter the same respective values for API and worker; do not independently regenerate them per service.
+
+### Manual Render provisioning when this workspace is unauthenticated
+
+1. Sign in to the Render Dashboard using an account authorized for the staging workspace.
+2. Select **New > Blueprint**, connect `Irkaland/FindGeorgia`, choose branch `main`, and keep the default Blueprint path `render.yaml`.
+3. Name the Blueprint `find-georgia-staging`. Before deploying, confirm the preview contains exactly the four staging resources named above, in the Frankfurt region, and review the paid plan charges.
+4. Enter every `sync: false` value from a password manager or provider secret store. Do not paste secrets into GitHub issues, commits, chat, or deployment notes.
+5. Create two independent random values of at least 32 characters for `SIGNED_URL_SECRET` and `DATA_ENCRYPTION_KEY`. Copy each value from the API service to the worker so the two services match; the two keys must not match each other.
+6. Set `API_ORIGIN` on the worker to the final Render API origin. Use exact HTTPS origins for `APP_ORIGIN`, `API_BASE_URL`, `PUBLIC_BASE_URL`, and `CORS_ALLOWED_ORIGINS`.
+7. Deploy only after the R2, Turnstile, Resend, and Sentry staging values are available. A production-mode deploy is expected to fail closed when required provider settings are missing.
+8. Record the deployed commit SHA and provider-generated URLs, run `npm run check:production`, and then execute every acceptance test below. Do not mark an item tested from configuration alone.
 
 ## PostgreSQL
 
@@ -60,12 +71,24 @@ Non-secret production-mode values are defined in `render.yaml`. Copy generated s
 - Short lifecycle for the private `quarantine/` prefix.
 - Optional controlled public-media custom domain; do not use `r2.dev` for production.
 
+Manual Dashboard sequence:
+
+1. Sign in to Cloudflare, select **Storage & databases > R2 > Overview**, and activate R2 if the account has not used it before.
+2. Create `find-georgia-public-staging` and `find-georgia-private-staging`; leave public development URL access disabled for the private bucket.
+3. Open **Manage R2 API Tokens**, create an Object Read & Write token limited to these two buckets, and copy its access-key ID and secret exactly once into the Render secret store.
+4. Set `OBJECT_STORAGE_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`, `OBJECT_STORAGE_REGION=auto`, and the two exact bucket names. Do not record the token values in this checklist.
+5. Add an organization-approved short lifecycle rule for the private `quarantine/` prefix only after confirming it cannot remove evidence awaiting review.
+
+Equivalent authenticated Wrangler bucket creation is `npx wrangler r2 bucket create find-georgia-public-staging` followed by `npx wrangler r2 bucket create find-georgia-private-staging`. Authenticate interactively with `npx wrangler login`; never put an API token directly in shell history.
+
 ## Turnstile
 
 - Staging widget restricted to `staging.findgeorgia.ge` or the exact temporary frontend hostname.
 - Configure `VITE_TURNSTILE_SITE_KEY` in the frontend build environment.
 - Configure `TURNSTILE_SECRET_KEY`, `TURNSTILE_HOSTNAME`, and `TURNSTILE_ACTION=public-intake` on API and worker.
 - Verify hostname/action rejection and successful public tip/privacy submissions over HTTPS.
+
+Manual sequence: in Cloudflare select **Turnstile > Add widget**, use a staging-only name, allow only the exact provider frontend hostname, then store the public site key in the frontend build environment and the secret key in Render. Keep `TURNSTILE_ACTION=public-intake`; server-side Siteverify, hostname, action, expiry, and replay checks remain mandatory.
 
 ## Resend
 
@@ -74,11 +97,15 @@ Non-secret production-mode values are defined in `render.yaml`. Copy generated s
 - Monitored staging recipient for `ADMIN_NOTIFICATION_EMAIL`.
 - Test password recovery and a fraud-review staff alert without real personal data.
 
+Manual sequence: create a staging-restricted API key, verify the chosen sender domain or use Resend's supported testing sender only for provider-approved test recipients, and place the key only in Render. Use fictional email content for delivery/failure tests.
+
 ## Sentry
 
 - Separate staging project and DSN.
 - Configure `ERROR_MONITOR_DSN` and a staging environment/release identifier.
 - Verify a controlled test error reaches the staging project without request bodies, credentials, tips, contact data, or default PII.
+
+Manual sequence: create a separate Node/Express staging project, copy only its DSN to `ERROR_MONITOR_DSN`, label events with the staging environment and deployed release, then trigger one synthetic error containing no personal data. Inspect the received event before accepting scrubbing.
 
 ## DNS
 
@@ -104,3 +131,7 @@ Keep both on sibling HTTPS hostnames so strict same-site cookies work as designe
 - R2 quarantine/scanner, signed private access, Turnstile, Resend, and Sentry live tests pass.
 - PostgreSQL backup/restore drill is timed and verified.
 - All evidence is recorded in `PRODUCTION_READINESS.md`; staging success must not be presented as production readiness.
+
+## Authentication result on 2026-08-24
+
+The Render, Cloudflare, Resend, and Sentry dashboards all presented sign-in pages, and no corresponding authenticated CLI or provider environment credentials were available. Consequently, no provider resource, secret, admin, DNS record, email, backup, or live test was created or run. GitHub remained the only authenticated external system. This is a provider-execution blocker, not evidence of application failure.
